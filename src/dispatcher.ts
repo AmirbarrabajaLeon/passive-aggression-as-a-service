@@ -66,7 +66,7 @@ export class MessageDispatcher {
       }
 
       // Filter by group if configured
-      if (config.targetGroupJid && chatJid !== config.targetGroupJid) {
+      if (config.targetGroupJid && chatJid.toLowerCase() !== config.targetGroupJid.toLowerCase()) {
         return;
       }
 

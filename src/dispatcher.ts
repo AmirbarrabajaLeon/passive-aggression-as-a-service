@@ -71,14 +71,17 @@ export class MessageDispatcher {
       }
 
       // Filter by sender (checks primary JID, alternative mapped Phone/LID, or username)
-      const cleanTarget = config.targetSenderPhone.replace(/[@:\s]/g, '').toLowerCase();
-      const cleanSender = senderJid.replace(/:\d+@/, '@').split('@')[0].toLowerCase();
-      const cleanAlt = altSenderJid?.replace(/:\d+@/, '@').split('@')[0].toLowerCase();
-      const cleanUser = senderUsername?.replace(/[@:\s]/g, '').toLowerCase();
+      const rawTarget = config.targetSenderPhone.startsWith('@')
+        ? config.targetSenderPhone.slice(1)
+        : config.targetSenderPhone;
+      const cleanTarget = rawTarget.split('@')[0].replace(/[:\s]/g, '').toLowerCase();
+      const cleanSender = senderJid.split('@')[0].split(':')[0].toLowerCase();
+      const cleanAlt = altSenderJid ? altSenderJid.split('@')[0].split(':')[0].toLowerCase() : '';
+      const cleanUser = senderUsername ? senderUsername.toLowerCase().replace(/[@\s]/g, '') : '';
 
       const isMatch =
         cleanSender === cleanTarget ||
-        cleanAlt === cleanTarget ||
+        (Boolean(cleanAlt) && cleanAlt === cleanTarget) ||
         (Boolean(cleanUser) && cleanUser === cleanTarget);
 
       if (!isMatch) {

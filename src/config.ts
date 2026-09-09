@@ -29,7 +29,7 @@ function normalizeJid(id: string, defaultDomain: 's.whatsapp.net' | 'g.us'): str
 
 export const config: Config = {
   targetGroupJid: normalizeJid(process.env.TARGET_GROUP_JID || '', 'g.us'),
-  targetSenderPhone: normalizeJid(process.env.TARGET_SENDER_PHONE || '', 's.whatsapp.net'),
+  targetSenderPhone: (process.env.TARGET_SENDER_PHONE || '').trim().replace(/[@\s]/g, '').toLowerCase(),
   replyMode: (process.env.REPLY_MODE as ReplyMode) || 'debounce',
   debounceWaitMs: Number.parseInt(process.env.DEBOUNCE_WAIT_MS || '3500', 10),
   cooldownMs: Number.parseInt(process.env.COOLDOWN_MS || '30000', 10),

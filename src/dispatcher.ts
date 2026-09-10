@@ -216,17 +216,32 @@ export class MessageDispatcher {
 
       console.log(`\x1b[32m[SENDING]\x1b[0m Quoting message "${job.textPreview}" with sticker...`);
 
-      await this.sock.sendMessage(
-        job.chatJid,
-        {
-          sticker: stickerBuffer,
+      // Build a clean, sanitized quoted reference to prevent WhatsApp client-side
+      // media drop when quoting images/videos containing raw encrypted media keys.
+      const sanitizedQuoted = {
+        key: job.message.key,
+        message: {
+          conversation: job.textPreview,
         },
-        {
-          quoted: job.message,
-        }
-      );
+      };
 
-      console.log(`\x1b[32m[SUCCESS]\x1b[0m Sticker sent successfully! Target annoyed.`);
+      try {
+        const sent = await this.sock.sendMessage(
+          job.chatJid,
+          {
+            sticker: stickerBuffer,
+          },
+          {
+            quoted: sanitizedQuoted as unknown as WAMessage,
+          }
+        );
+
+        console.log(`\x1b[32m[SUCCESS]\x1b[0m Sticker sent successfully! (ID: ${sent?.key?.id || 'dispatched'}) Target annoyed.`);
+      } catch (quoteErr) {
+        console.warn(`\x1b[33m[WARN]\x1b[0m Quoted send failed, falling back to standalone sticker:`, quoteErr);
+        const fallback = await this.sock.sendMessage(job.chatJid, { sticker: stickerBuffer });
+        console.log(`\x1b[32m[SUCCESS]\x1b[0m Standalone sticker sent as fallback! (ID: ${fallback?.key?.id || 'dispatched'})`);
+      }
     } catch (error) {
       console.error(`\x1b[31m[ERROR]\x1b[0m Failed to send sticker:`, error);
     }

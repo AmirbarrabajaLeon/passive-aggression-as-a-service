@@ -5,7 +5,71 @@ This file tracks the active focus, prioritized roadmap, and continuity notes for
 ---
 
 ## 🎯 Current Focus
-Phase 1 (Dynamic Multi-Sticker Pool) and **Phase 2 (Modular Pipeline Architecture)** are both complete and verified. Ready to begin **Phase 3: Stateless LLM Replier**.
+
+Phase 3 (Stateless LLM Replier) is **complete and verified**. Ready to begin **Phase 4: Web UI Management Dashboard** or tackle the deferred headless test suite (vitest).
+
+---
+
+## ✅ Recent Milestones (Last 1–2 Sessions)
+
+- **Phase 3: Stateless LLM Replier** (`feat/llm-retort`)
+  - Installed `openai` SDK (v7.15.0) — OpenAI-compatible, provider-agnostic.
+  - Added `ReplyFormat` type + four new env-backed fields (`llmApiKey`, `llmBaseUrl`, `llmModel`, `replyFormat`) to `src/config.ts`.
+  - Created `prompts/system.md`: editable bot persona template with `{{text}}` placeholder injection.
+  - Implemented `LlmRetortGenerator` in `src/generators/llm.ts`: stateless, 8s timeout guard, silent `null` fallback on any failure.
+  - Implemented `CompositePayloadGenerator` in `src/generators/composite.ts`: coordinates `combo | text | sticker` modes via `Promise.all()` in combo mode for parallel LLM + sticker generation.
+  - Updated `WhatsAppTransport.send()` to deliver quoted text retorts, with a human-like 800–1400ms pause before the sticker in combo mode.
+  - Swapped `Dispatcher` from `StickerPayloadGenerator` → `CompositePayloadGenerator` (2 lines changed).
+  - Updated startup banner in `src/index.ts` to surface LLM model and reply format.
+  - Updated `.env.example` with full LLM config block and provider-swap instructions.
+  - Verified: `pnpm exec tsc --noEmit` exits 0.
+
+- **Phase 2: Modular Pipeline & Headless Architecture** ✅ Complete
+- **Phase 1: Dynamic Multi-Sticker & Animated WebP Pool** ✅ Complete
+
+---
+
+## 📋 Prioritized Feature Roadmap
+
+### Phase 3: Stateless LLM Replier 🤖 ✅ Complete
+- [x] Install `openai` SDK (OpenAI-compatible, provider-agnostic).
+- [x] `prompts/system.md`: external, editable persona template.
+- [x] `LlmRetortGenerator`: stateless, timeout-guarded, null-fallback on failure.
+- [x] `CompositePayloadGenerator`: orchestrates `combo | text | sticker` modes.
+- [x] `WhatsAppTransport.send()`: text retort + human pause + sticker egress.
+- [x] Config, startup banner, `.env.example` updated.
+
+### Deferred: Headless Test Suite 🧪
+- [ ] Add `vitest` as a dev dependency.
+- [ ] Write headless unit tests for guards, strategies, and generators (including mocked LLM responses).
+
+### Phase 4: Web UI Management Dashboard ⏸️
+- [ ] Minimal HTTP server (Fastify/Express) with WebSocket/SSE support.
+- [ ] Web-based QR code display for pairing without terminal scrolling.
+- [ ] Dashboard to edit `prompts/system.md` persona in-browser (reads/writes the flat file directly).
+- [ ] Toggle `REPLY_FORMAT` (`combo` / `text` / `sticker`) and switch strategies at runtime.
+- [ ] Toggle target contacts at runtime without restarting.
+
+---
+
+## 🚧 Known Quirks & Architecture Notes
+
+- **LLM Provider Swap:** Set `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_MODEL` in `.env` to switch between Gemini Flash, Groq (Llama 3), OpenRouter, or local Ollama. Zero code changes required.
+- **LLM Disabled Gracefully:** If `LLM_API_KEY` is blank, `LlmRetortGenerator` returns `null` immediately. `CompositePayloadGenerator` falls back to sticker-only so the bot never goes silent.
+- **Prompt File:** `prompts/system.md` is read once at startup and cached in memory. Edit it, restart the bot. Phase 4 Web UI will hot-reload it via the dashboard.
+- **Combo Latency:** In `combo` mode, LLM API call and sticker disk-scan run in parallel via `Promise.all()`. Net latency ≈ max(LLM, disk) not their sum. Gemini Flash typically responds in 1–2s.
+- **Stickers Pool:** `./stickers/` is the single source of truth. Both static and animated `.webp` files (<= 1MB) are supported.
+- **Safety Policy:** Do not run `pnpm dev` or `pnpm start` via autonomous agents.
+
+---
+
+## ⏭️ Immediate Next Steps
+
+Choose one:
+1. **Headless Test Suite:** Add `vitest`, write mocked unit tests for `LlmRetortGenerator` and `CompositePayloadGenerator` — high value for catching regressions.
+2. **Phase 4 Web UI:** Scaffold Fastify server, SSE endpoint, and a minimal dashboard to manage the bot without terminal access.
+3. **Multimodal Vision (Shelved):** Revisit once a cheap visual captioning model is wired into `WhatsAppTransport.extractText()` to convert incoming images into text before passing to the LLM.
+
 
 ---
 

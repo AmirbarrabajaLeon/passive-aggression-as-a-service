@@ -47,6 +47,7 @@ Phase 3 (Stateless LLM Replier) is **complete and verified**. Ready to begin **P
 - [ ] Minimal HTTP server (Fastify/Express) with WebSocket/SSE support.
 - [ ] Web-based QR code display for pairing without terminal scrolling.
 - [ ] Multi-persona CRUD & live editor (create, edit, switch personas on the fly).
+- [ ] Sticker gallery with "Hype Train" weighting (boost frequency of trending meme stickers).
 - [ ] Toggle `REPLY_FORMAT` (`combo` / `text` / `sticker`) and switch strategies at runtime.
 - [ ] Toggle target contacts at runtime without restarting.
 - [ ] Lightweight SQLite logging for interaction history and roast stats.

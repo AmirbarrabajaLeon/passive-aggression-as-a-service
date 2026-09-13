@@ -5,11 +5,19 @@ This file tracks the active focus, prioritized roadmap, and continuity notes for
 ---
 
 ## 🎯 Current Focus
-Phase 1 (Dynamic Multi-Sticker Pool) completed and verified. Currently executing **Phase 2: Modular Pipeline & Decoupled Architecture** on branch `refactor/modular-pipeline` to decouple transport, guards, timing strategies, and payload generation before adding LLM dependencies.
+Phase 1 (Dynamic Multi-Sticker Pool) and **Phase 2 (Modular Pipeline Architecture)** are both complete and verified. Ready to begin **Phase 3: Stateless LLM Replier**.
 
 ---
 
 ## ✅ Recent Milestones (Last 1–2 Sessions)
+- **Phase 2: Modular Pipeline & Headless Architecture** (`refactor/modular-pipeline`)
+  - Defined core contracts in `src/types.ts` (`InboundMessage`, `OutboundPayload`, `PayloadGenerator`, `ReplyStrategy`).
+  - Extracted pure guard functions into `src/guards/` (`isStickerLoop`, `isHistoryMessage`, `isTargetMatch`, `isTargetGroup`, `isSelfTestAllowed`).
+  - Split timing logic into `src/strategies/` (`DebounceStrategy`, `QueueStrategy`, `CooldownStrategy`) behind `ReplyStrategy`; factory via `buildStrategy()`.
+  - Wrapped `StickerPool` under `StickerPayloadGenerator` in `src/generators/` — Phase 3 LLM plug-in slot ready.
+  - Extracted all Baileys concerns into `src/transport/WhatsAppTransport`; dispatcher no longer holds a `WASocket` reference.
+  - Slimmed `src/dispatcher.ts` from 250 to ~65 lines; now a pure coordinator.
+  - Deleted `src/whatsapp.ts`. Verified: `pnpm exec tsc --noEmit` exits 0.
 - **Phase 1: Dynamic Multi-Sticker & Animated WebP Pool**
   - Migrated `lion.webp` into `./stickers/lion.webp` as foundational baseline.
   - Implemented `StickerPool` engine (`src/sticker-pool.ts`) with dynamic disk scanning.
@@ -22,13 +30,13 @@ Phase 1 (Dynamic Multi-Sticker Pool) completed and verified. Currently executing
 
 ## 📋 Prioritized Feature Roadmap
 
-### Phase 2: Modular Pipeline & Headless Architecture 🏗️ (Current Focus)
-- [ ] **Transport Layer (`src/transport/`):** Encapsulate Baileys lifecycle, auth, QR/pairing codes, LID/phone mappings, and raw event normalization into a clean `WhatsAppTransport` implementing `MessageTransport`.
-- [ ] **Guard & Filter Pipeline (`src/guards/`):** Pure functions for target phone/group matching, history suppression, sticker loop protection, and self-test rules.
-- [ ] **Strategy Engine (`src/strategies/`):** Decouple `debounce`, `queue`, and `cooldown` into individual strategy classes conforming to `ReplyStrategy`.
-- [ ] **Payload Generator Interface (`src/generators/`):** Wrap `StickerPool` under `StickerPayloadGenerator` conforming to `PayloadGenerator`, creating a clean plug-in slot for LLM text retorts.
-- [ ] **Dispatcher Orchestrator (`src/dispatcher/`):** Slim down orchestrator to a clean, readable coordinator gluing transport, guards, active strategy, and generator.
-- [ ] **Headless Test Suite:** Add fast, deterministic mock tests covering timing strategies, cooldown, and filter matching without requiring a live WhatsApp connection.
+### Phase 2: Modular Pipeline & Headless Architecture 🏗️ ✅ Complete
+- [x] **Transport Layer (`src/transport/`):** `WhatsAppTransport` encapsulates all Baileys lifecycle, auth, QR/pairing, LID mapping, normalization, and egress `send()`.
+- [x] **Guard & Filter Pipeline (`src/guards/`):** Pure functions for target matching, history suppression, sticker loop protection, and self-test rules.
+- [x] **Strategy Engine (`src/strategies/`):** `DebounceStrategy`, `QueueStrategy`, `CooldownStrategy` each implement `ReplyStrategy`; factory via `buildStrategy()`.
+- [x] **Payload Generator Interface (`src/generators/`):** `StickerPayloadGenerator` implements `PayloadGenerator` — Phase 3 LLM generator plug-in slot ready.
+- [x] **Dispatcher Orchestrator (`src/dispatcher.ts`):** Slimmed from 250 to ~65 lines; pure coordinator.
+- [ ] **Headless Test Suite:** Deferred to follow-up task (vitest not yet added).
 
 ### Phase 3: Stateless LLM Replier 🤖 (Next Up)
 - [ ] Integrate lightweight LLM client (e.g. Gemini Flash SDK).
@@ -53,4 +61,4 @@ Phase 1 (Dynamic Multi-Sticker Pool) completed and verified. Currently executing
 ---
 
 ## ⏭️ Immediate Next Step
-Establish core contracts/types (`MessageTransport`, `InboundMessage`, `ReplyStrategy`, `PayloadGenerator`) and extract pure guard functions into `src/guards/` to begin modularizing [whatsapp.ts](file:///home/leonejo/projects/passive-aggression-as-a-service/src/whatsapp.ts) and [dispatcher.ts](file:///home/leonejo/projects/passive-aggression-as-a-service/src/dispatcher.ts). Verify with `pnpm exec tsc --noEmit`.
+Begin Phase 3: add Gemini Flash SDK (`@google/generative-ai`), implement `LlmRetortGenerator` in `src/generators/llm-retort.ts` implementing `PayloadGenerator`, craft a stateless passive-aggressive system prompt quoting the target's message, and compose it with `StickerPayloadGenerator` in the dispatcher. Verify with `pnpm exec tsc --noEmit`.

@@ -24,6 +24,38 @@ An automated WhatsApp response bot built with `@whiskeysockets/baileys` and Node
 
 ---
 
+## 🏗️ Architecture
+
+The bot is built as a clean **Modular Pipeline** — each concern lives in its own slice with a single responsibility. This makes it easy to add new features (LLM retorts, Web UI) without touching the core plumbing.
+
+```
+src/
+├── types.ts               ← Shared contracts (InboundMessage, PayloadGenerator…)
+├── config.ts              ← Env-var configuration
+├── sticker-pool.ts        ← Fisher-Yates shuffle bag + WebP validation
+│
+├── transport/             ← ALL Baileys socket concerns
+│   └── whatsapp-transport.ts   auth, QR/pairing, LID mapping, send()
+│
+├── guards/                ← Pure message filter functions
+│   └── index.ts                isStickerLoop, isTargetMatch, isHistoryMessage…
+│
+├── strategies/            ← Timing / scheduling strategies
+│   ├── debounce.ts             wait for silence, reply to last message
+│   ├── queue.ts                sequential replies with human pacing
+│   └── cooldown.ts             fire once, ignore for N seconds
+│
+├── generators/            ← Content generation (what to send)
+│   └── sticker.ts              draws from StickerPool
+│
+├── dispatcher.ts          ← Coordinator: guards → strategy → generator → send
+└── index.ts               ← Entry point & startup banner
+```
+
+**Message lifecycle:** A raw Baileys event is normalized by `WhatsAppTransport` into an `InboundMessage`, passed through pure guard functions to filter out noise, handed to the active timing strategy (`debounce` / `queue` / `cooldown`), which fires a payload generator when ready, and finally calls `transport.send()` to deliver the quoted sticker reply.
+
+---
+
 ## 🛠️ Getting Started
 
 ### 1. Install Dependencies

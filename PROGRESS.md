@@ -37,6 +37,7 @@ Phase 1 (Dynamic Multi-Sticker Pool) completed and verified. Ready to begin **Ph
 ## 🚧 Known Quirks & Architecture Notes
 
 - **Stickers Pool:** `./stickers/` is the single source of truth. Stickers are scanned dynamically on trigger; both static and animated `.webp` files (<= 1MB) are supported natively. Corrupt/oversized files are safely rotated out without crashing.
+- **Architectural Pattern (Anti-Overengineering Guideline):** Use a **Modular Pipeline / Vertical Slice** layout (`transport` -> `domain/services` -> `strategies` -> `dispatcher`). Avoid enterprise DDD/CQRS ceremony (Aggregates, Command Buses, Repositories); keep modules decoupled, single-purpose, and headless-testable.
 - **WhatsApp JIDs:** User contacts use phone digits + `@s.whatsapp.net` (e.g., `15551234567@s.whatsapp.net`). Group chats use `@g.us`.
 - **Baileys Auth State:** Credentials and keys are saved in `auth_info_baileys/`. Never delete or tamper with this folder during restarts.
 - **Safety Policy:** Do not run `pnpm dev` or `pnpm start` via autonomous agents.

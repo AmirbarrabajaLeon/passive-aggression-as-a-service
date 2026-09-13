@@ -6,7 +6,7 @@ import type { InboundMessage, OutboundPayload, PayloadGenerator } from '../types
 
 const SYSTEM_PROMPT_PATH = path.resolve(process.cwd(), 'prompts/system.md');
 const LLM_TIMEOUT_MS = 8000;
-const MAX_TOKENS = 60;
+const MAX_TOKENS = 35;
 
 export class LlmRetortGenerator implements PayloadGenerator {
   private readonly client: OpenAI;
@@ -29,15 +29,16 @@ export class LlmRetortGenerator implements PayloadGenerator {
   async generate(msg: InboundMessage): Promise<OutboundPayload | null> {
     if (!config.llmApiKey) return null;
 
-    const userPrompt = this.systemPromptTemplate.replace('{{text}}', msg.textPreview);
-
     try {
       const result = await Promise.race<OpenAI.Chat.ChatCompletion>([
         this.client.chat.completions.create({
           model: config.llmModel,
-          messages: [{ role: 'user', content: userPrompt }],
+          messages: [
+            { role: 'system', content: this.systemPromptTemplate },
+            { role: 'user', content: msg.textPreview },
+          ],
           max_tokens: MAX_TOKENS,
-          temperature: 0.9,
+          temperature: 0.8,
         }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('LLM timeout')), LLM_TIMEOUT_MS)

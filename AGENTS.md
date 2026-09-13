@@ -15,6 +15,72 @@ Welcome! This document provides operational boundaries, architectural context, a
 
 ---
 
+## 🔀 Pipeline Architecture
+
+All messages flow through a strict, one-way pipeline. **Never collapse these layers.**
+
+```
+Baileys WebSocket
+      │
+      ▼
+┌─────────────────────────────────┐
+│  src/transport/                 │  ← ONLY layer that may import Baileys
+│  WhatsAppTransport              │    Handles: auth, QR/pairing, LID mapping,
+│                                 │    messages.upsert normalization, egress send()
+└─────────────────┬───────────────┘
+                  │ emits InboundMessage
+                  ▼
+┌─────────────────────────────────┐
+│  src/guards/                    │  ← Pure filter functions (no side effects)
+│  isStickerLoop, isTargetMatch…  │    Headless-testable, zero Baileys dependency
+└─────────────────┬───────────────┘
+                  │ passes / drops
+                  ▼
+┌─────────────────────────────────┐
+│  src/strategies/                │  ← Timing/scheduling only
+│  DebounceStrategy, QueueStrategy│    Implements ReplyStrategy interface
+│  CooldownStrategy               │    No knowledge of stickers, LLM, or sockets
+└─────────────────┬───────────────┘
+                  │ fires callback when timing elapses
+                  ▼
+┌─────────────────────────────────┐
+│  src/generators/                │  ← Content generation only
+│  StickerPayloadGenerator        │    Implements PayloadGenerator interface
+│  (Phase 3: LlmRetortGenerator)  │    No knowledge of timing or sockets
+└─────────────────┬───────────────┘
+                  │ returns OutboundPayload
+                  ▼
+┌─────────────────────────────────┐
+│  src/dispatcher.ts              │  ← Pure coordinator (~65 lines)
+│  Dispatcher                     │    Wires guards → strategy → generator
+│                                 │    Calls transport.send(), nothing else
+└─────────────────────────────────┘
+```
+
+### 🚨 Golden Rules
+
+1. **`@whiskeysockets/baileys` MUST ONLY be imported in `src/transport/`.**
+   Guards, strategies, generators, and the dispatcher are fully transport-agnostic.
+
+2. **`src/types.ts` is the single source of truth** for shared interfaces (`InboundMessage`,
+   `OutboundPayload`, `PayloadGenerator`, `ReplyStrategy`). Do not redefine these elsewhere.
+
+3. **Anti-overengineering:** This is a Modular Pipeline / Vertical Slice layout.
+   Avoid DDD, CQRS, Aggregates, Command Buses, Repositories. Keep each slice
+   single-purpose and independently headless-testable.
+
+### 📁 Where Features Live
+
+| Need to add… | Touch this folder |
+| :--- | :--- |
+| New timing/scheduling behavior | `src/strategies/` — implement `ReplyStrategy` |
+| New content generator (LLM, image, text…) | `src/generators/` — implement `PayloadGenerator` |
+| New message filter or guard | `src/guards/` — add a pure function |
+| Baileys connection behavior, auth, egress | `src/transport/` — only here |
+| Shared data shapes / contracts | `src/types.ts` |
+
+---
+
 ## 🛡️ Critical Safety & Socket Guardrails
 
 > [!CAUTION]

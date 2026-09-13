@@ -1,6 +1,6 @@
-import fs from 'node:fs';
 import type { WAMessage, WASocket } from '@whiskeysockets/baileys';
 import { config } from './config.js';
+import { stickerPool } from './sticker-pool.js';
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -195,12 +195,11 @@ export class MessageDispatcher {
   // =========================================================================
   private async sendStickerReply(job: QueuedJob): Promise<void> {
     try {
-      if (!fs.existsSync(config.stickerPath)) {
-        console.error(`\x1b[31m[ERROR]\x1b[0m Sticker file not found at: ${config.stickerPath}`);
+      const sticker = stickerPool.drawSticker();
+      if (!sticker) {
+        // Pool is empty or all candidates failed validation. Error already logged by stickerPool.
         return;
       }
-
-      const stickerBuffer = fs.readFileSync(config.stickerPath);
 
       // Simulate human presence (typing indicator)
       if (config.simulateTyping) {
@@ -214,7 +213,7 @@ export class MessageDispatcher {
         }
       }
 
-      console.log(`\x1b[32m[SENDING]\x1b[0m Quoting message "${job.textPreview}" with sticker...`);
+      console.log(`\x1b[32m[SENDING]\x1b[0m Quoting message "${job.textPreview}" with sticker "${sticker.filename}"...`);
 
       // Build a clean, sanitized quoted reference to prevent WhatsApp client-side
       // media drop when quoting images/videos containing raw encrypted media keys.
@@ -229,18 +228,18 @@ export class MessageDispatcher {
         const sent = await this.sock.sendMessage(
           job.chatJid,
           {
-            sticker: stickerBuffer,
+            sticker: sticker.buffer,
           },
           {
             quoted: sanitizedQuoted as unknown as WAMessage,
           }
         );
 
-        console.log(`\x1b[32m[SUCCESS]\x1b[0m Sticker sent successfully! (ID: ${sent?.key?.id || 'dispatched'}) Target annoyed.`);
+        console.log(`\x1b[32m[SUCCESS]\x1b[0m Sticker "${sticker.filename}" sent successfully! (ID: ${sent?.key?.id || 'dispatched'}) Target annoyed.`);
       } catch (quoteErr) {
         console.warn(`\x1b[33m[WARN]\x1b[0m Quoted send failed, falling back to standalone sticker:`, quoteErr);
-        const fallback = await this.sock.sendMessage(job.chatJid, { sticker: stickerBuffer });
-        console.log(`\x1b[32m[SUCCESS]\x1b[0m Standalone sticker sent as fallback! (ID: ${fallback?.key?.id || 'dispatched'})`);
+        const fallback = await this.sock.sendMessage(job.chatJid, { sticker: sticker.buffer });
+        console.log(`\x1b[32m[SUCCESS]\x1b[0m Standalone sticker "${sticker.filename}" sent as fallback! (ID: ${fallback?.key?.id || 'dispatched'})`);
       }
     } catch (error) {
       console.error(`\x1b[31m[ERROR]\x1b[0m Failed to send sticker:`, error);

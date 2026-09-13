@@ -1,20 +1,26 @@
-# WhatsApp Auto-Sticker Bot 🦁
+# WhatsApp Auto-Sticker Bot 🦁🎭
 
-An automated WhatsApp response bot built with `@whiskeysockets/baileys` and Node.js. It automatically replies to a target contact in a specific group chat by quoting their message with a sticker (`lion.webp`), featuring humanized delay jitter and multiple anti-spam / trolling strategies.
+An automated WhatsApp response bot built with `@whiskeysockets/baileys` and Node.js. It automatically replies to a target contact in a specific group chat by quoting their message with a sticker drawn from a dynamic sticker pool (`./stickers/`), featuring humanized delay jitter, shuffle-bag non-repetition rotation, and multiple anti-spam / trolling strategies.
 
 ---
 
 ## 🚀 Features
 
 - **Direct WebSocket Protocol**: Built using Baileys (no heavy Chromium/browser overhead).
+- **Dynamic Multi-Sticker Pool**:
+  - Drop any `.webp` sticker into `./stickers/` and the bot picks it up dynamically on the next reply—no server restart required!
+  - **Full Animated WebP Support**: Supports both static and animated stickers natively.
+  - **Fisher-Yates Shuffle Bag**: Deals stickers like a deck of cards, guaranteeing **zero back-to-back repeats** across replies.
+  - **Self-Healing Rotation Cascade**: Validates file size (<= 1MB) and `RIFF....WEBP` magic headers, automatically cascading to the next sticker if a file is invalid or corrupt.
 - **Humanized Delivery**:
   - **Random Jitter**: Never sends at fixed bot intervals; adds dynamic millisecond delays.
   - **Presence Simulation**: Emits a `composing...` (typing) indicator for 1–2 seconds prior to replying.
 - **3 Anti-Spam / Trolling Strategies** (switchable via `.env`):
-  1. **`debounce`** *(Default & Recommended)*: Waits until the target stops typing/sending (e.g. 3.5s of silence), then quotes their **very last** message with the lion sticker.
+  1. **`debounce`** *(Default & Recommended)*: Waits until the target stops typing/sending (e.g. 3.5s of silence), then quotes their **very last** message with a sticker.
   2. **`queue`**: Queues every single message and replies one-by-one with randomized human pauses in between.
   3. **`cooldown`**: Replies to their initial message, then ignores subsequent messages for a set cooldown period (e.g. 30 seconds).
-- **Built-in Discovery Mode**: Automatically logs incoming group IDs and phone numbers in the terminal so you can easily copy and paste them into your `.env`.
+- **Flexible Device Pairing**: Link via standard terminal QR code or direct WhatsApp Pairing Code (recommended for iPhone).
+- **Built-in Discovery Mode & Groups Inspector**: Inspect group JIDs, member numbers, and privacy LIDs instantly.
 
 ---
 
@@ -33,7 +39,7 @@ Open `.env` (or copy from `.env.example`):
 # Leave blank initially if you want Discovery Mode to find it for you!
 TARGET_GROUP_JID=
 
-# Target friend's phone number (Digits only, e.g. 15551234567)
+# Target friend's phone number, privacy LID, or username (e.g. 15551234567 or Alex_99)
 TARGET_SENDER_PHONE=
 
 # Reply Mode: "debounce" | "queue" | "cooldown"
@@ -49,21 +55,33 @@ JITTER_MAX_MS=3500
 # Typing indicator simulation
 SIMULATE_TYPING=true
 
-# Path to the sticker file
-STICKER_PATH=./lion.webp
+# Sticker pool directory relative to project root
+STICKERS_DIR=./stickers
+
+# Legacy/override single sticker file relative to project root (optional)
+STICKER_PATH=./stickers/lion.webp
 
 # Discovery logging
 DISCOVERY_MODE=true
+
+# Self-Test Mode: test the bot using your own messages
+ALLOW_SELF_TEST=true
+
+# (Optional for iPhone): Link via 8-digit Pairing Code instead of QR
+MY_PHONE_NUMBER=
 ```
 
-### 3. Run the Bot
+### 3. Add Your Stickers
+Place any `.webp` stickers (static or animated) into the `./stickers/` folder. The bot comes with sample stickers ready to go out of the box!
+
+### 4. Run the Bot
 ```bash
 pnpm dev
 ```
 
-1. A QR code will display in your terminal.
+1. A QR code (or pairing code) will display in your terminal.
 2. Open WhatsApp on your phone $\rightarrow$ **Settings / Menu** $\rightarrow$ **Linked Devices** $\rightarrow$ **Link a Device**.
-3. Scan the QR code. Your session is securely stored locally in the `./auth_info` folder (you won't need to re-scan on future launches).
+3. Scan the QR code or enter the pairing code. Your session is securely stored in `./auth_info_baileys/` (you won't need to re-link on future launches).
 
 ---
 
@@ -76,14 +94,14 @@ You can test the bot using your own WhatsApp account before targeting your frien
    ```bash
    pnpm dev
    ```
-3. Scan the QR code with your phone.
+3. Link your phone via QR or pairing code.
 4. Go to your own **"Message Yourself"** chat in WhatsApp (or a private test group).
 5. Type and send a message (e.g., *"testing debounce"*).
 6. **Watch the magic:**
    - The terminal will log: `[SELF-TEST TRIGGERED]`
    - It counts down the debounce duration + random jitter.
    - It briefly displays "typing..." in WhatsApp.
-   - It quotes your message with `lion.webp`!
+   - It quotes your message with a randomly selected sticker from `./stickers/`!
    - *(Incoming stickers are automatically ignored, so it will never trigger an infinite loop).*
 7. When you are ready for your friend:
    - Set `ALLOW_SELF_TEST=false` in `.env`.

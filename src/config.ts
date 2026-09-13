@@ -14,6 +14,7 @@ export interface Config {
   jitterMinMs: number;
   jitterMaxMs: number;
   simulateTyping: boolean;
+  stickersDir: string;
   stickerPath: string;
   discoveryMode: boolean;
   allowSelfTest: boolean;
@@ -27,6 +28,8 @@ function normalizeJid(id: string, defaultDomain: 's.whatsapp.net' | 'g.us'): str
   return `${clean}@${defaultDomain}`;
 }
 
+const resolvedStickersDir = path.resolve(process.cwd(), process.env.STICKERS_DIR || './stickers');
+
 export const config: Config = {
   targetGroupJid: normalizeJid(process.env.TARGET_GROUP_JID || '', 'g.us'),
   targetSenderPhone: (process.env.TARGET_SENDER_PHONE || '').trim().replace(/[@\s]/g, '').toLowerCase(),
@@ -36,7 +39,8 @@ export const config: Config = {
   jitterMinMs: Number.parseInt(process.env.JITTER_MIN_MS || '1500', 10),
   jitterMaxMs: Number.parseInt(process.env.JITTER_MAX_MS || '3500', 10),
   simulateTyping: process.env.SIMULATE_TYPING !== 'false',
-  stickerPath: path.resolve(process.cwd(), process.env.STICKER_PATH || './lion.webp'),
+  stickersDir: resolvedStickersDir,
+  stickerPath: path.resolve(process.cwd(), process.env.STICKER_PATH || path.join(resolvedStickersDir, 'lion.webp')),
   discoveryMode: process.env.DISCOVERY_MODE !== 'false',
   allowSelfTest: process.env.ALLOW_SELF_TEST === 'true',
   myPhoneNumber: (process.env.MY_PHONE_NUMBER || '').trim().replace(/[+\s-]/g, ''),

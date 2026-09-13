@@ -46,9 +46,14 @@ Phase 3 (Stateless LLM Replier) is **complete and verified**. Ready to begin **P
 ### Phase 4: Web UI Management Dashboard ⏸️
 - [ ] Minimal HTTP server (Fastify/Express) with WebSocket/SSE support.
 - [ ] Web-based QR code display for pairing without terminal scrolling.
-- [ ] Dashboard to edit `prompts/system.md` persona in-browser (reads/writes the flat file directly).
+- [ ] Multi-persona CRUD & live editor (create, edit, switch personas on the fly).
 - [ ] Toggle `REPLY_FORMAT` (`combo` / `text` / `sticker`) and switch strategies at runtime.
 - [ ] Toggle target contacts at runtime without restarting.
+
+### Phase 5: WhatsApp-Native HITL & Target Dossiers 📲 (Future Exploration)
+- [ ] WhatsApp-Native Approval Loop: ping your personal WhatsApp DM when confidence is low with 1-tap options.
+- [ ] Target Dossiers: lightweight markdown files (`prompts/targets/<friend>.md`) for personal lore and surgical roasts.
+- [ ] Lightweight SQLite logging for interaction history and roast stats.
 
 ---
 

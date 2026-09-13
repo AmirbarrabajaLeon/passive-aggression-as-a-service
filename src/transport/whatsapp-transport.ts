@@ -9,43 +9,36 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
 import pino from 'pino';
-import { config } from './config.js';
-import { MessageDispatcher } from './dispatcher.js';
+import { config } from '../config.js';
+import type { InboundMessage, OutboundPayload } from '../types.js';
 
-export class WhatsAppClient {
+export class WhatsAppTransport {
   private sock: WASocket | null = null;
-  private dispatcher: MessageDispatcher | null = null;
-  private authFolder: string;
-  private startedAt = Math.floor(Date.now() / 1000);
   private lidToPhone = new Map<string, string>();
   private phoneToLid = new Map<string, string>();
   private usernameToLid = new Map<string, string>();
   private lidToUsername = new Map<string, string>();
 
-  constructor(authFolder = './auth_info') {
-    this.authFolder = path.resolve(process.cwd(), authFolder);
-  }
+  constructor(
+    private authFolder: string,
+    private onMessage: (msg: InboundMessage) => Promise<void>,
+    private botStartedAt: number
+  ) {}
 
   public async start(): Promise<void> {
-    const { state, saveCreds } = await useMultiFileAuthState(this.authFolder);
+    const { state, saveCreds } = await useMultiFileAuthState(
+      path.resolve(process.cwd(), this.authFolder)
+    );
     const { version } = await fetchLatestBaileysVersion();
-
-    const logger = pino({ level: 'silent' });
 
     this.sock = makeWASocket({
       version,
       auth: state,
-      logger,
+      logger: pino({ level: 'silent' }),
       browser: Browsers.ubuntu('Chrome'),
       printQRInTerminal: false,
       defaultQueryTimeoutMs: 60000,
     });
-
-    if (!this.dispatcher) {
-      this.dispatcher = new MessageDispatcher(this.sock);
-    } else {
-      this.dispatcher.updateSocket(this.sock);
-    }
 
     this.sock.ev.on('creds.update', saveCreds);
 
@@ -80,15 +73,20 @@ export class WhatsAppClient {
       }
 
       if (connection === 'close') {
-        const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } })?.output?.statusCode;
+        const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } })?.output
+          ?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-        console.log(`\x1b[31m[CONNECTION CLOSED]\x1b[0m Reason code: ${statusCode}. Reconnecting in 3s: ${shouldReconnect}`);
+        console.log(
+          `\x1b[31m[CONNECTION CLOSED]\x1b[0m Reason code: ${statusCode}. Reconnecting in 3s: ${shouldReconnect}`
+        );
 
         if (shouldReconnect) {
           setTimeout(() => void this.start(), 3000);
         } else {
-          console.log('\x1b[31m[LOGGED OUT]\x1b[0m Session expired. Delete ./auth_info folder and restart.');
+          console.log(
+            '\x1b[31m[LOGGED OUT]\x1b[0m Session expired. Delete ./auth_info folder and restart.'
+          );
         }
       } else if (connection === 'open') {
         console.log('\n\x1b[32m==============================================\x1b[0m');
@@ -101,35 +99,18 @@ export class WhatsAppClient {
     });
 
     this.sock.ev.on('messages.upsert', async (event) => {
-      if (!this.dispatcher) return;
-
       // Only process live incoming messages, NEVER history sync / appends
       if (event.type !== 'notify') return;
 
-      for (const msg of event.messages) {
-        if (!msg.message) continue;
+      for (const raw of event.messages) {
+        if (!raw.message) continue;
 
-        // CRITICAL: Never react to stickers (prevents infinite self-loops)
-        if (msg.message.stickerMessage) continue;
-
-        // Ignore historical/backlogged messages sent before bot started
-        const rawTimestamp = msg.messageTimestamp;
-        const msgTime = typeof rawTimestamp === 'number' ? rawTimestamp : Number(rawTimestamp || 0);
-        if (msgTime > 0 && msgTime < this.startedAt - 5) {
-          continue;
-        }
-
-        // Skip our own messages unless testing mode is explicitly enabled
-        if (msg.key.fromMe && !config.allowSelfTest) {
-          continue;
-        }
-
-        const chatJid = msg.key.remoteJid;
+        const chatJid = raw.key.remoteJid;
         if (!chatJid) continue;
 
         // In group chats, participant indicates the author; for self-messages, use bot's JID
-        let senderJid = msg.key.participant || chatJid;
-        if (msg.key.fromMe && this.sock?.user?.id) {
+        let senderJid = raw.key.participant || chatJid;
+        if (raw.key.fromMe && this.sock?.user?.id) {
           senderJid = this.sock.user.id.replace(/:\d+@/, '@');
         }
 
@@ -142,20 +123,79 @@ export class WhatsAppClient {
           altSenderJid = `${this.phoneToLid.get(cleanSenderId)}@lid`;
         }
 
-        const senderUsername = this.lidToUsername.get(cleanSenderId);
+        const msg: InboundMessage = {
+          chatJid,
+          senderJid,
+          altSenderJid,
+          senderUsername: this.lidToUsername.get(cleanSenderId),
+          textPreview: this.extractText(raw),
+          raw,
+          isFromMe: Boolean(raw.key.fromMe),
+        };
 
-        // Extract a readable text snippet for logging
-        const textPreview = this.extractMessageText(msg);
-
-        await this.dispatcher.handleIncoming(chatJid, senderJid, msg, textPreview, altSenderJid, senderUsername);
+        await this.onMessage(msg);
       }
     });
   }
 
-  private extractMessageText(msg: WAMessage): string {
+  /**
+   * Egress: simulate typing presence, sanitize quoted context, send via Baileys.
+   * The Dispatcher calls this — it never holds a WASocket reference itself.
+   */
+  public async send(
+    chatJid: string,
+    payload: OutboundPayload,
+    raw: WAMessage,
+    textPreview: string
+  ): Promise<void> {
+    if (!this.sock) return;
+
+    // Simulate human presence (typing indicator)
+    if (config.simulateTyping) {
+      try {
+        await this.sock.sendPresenceUpdate('composing', chatJid);
+        const typingDuration = Math.floor(Math.random() * 1000) + 1000;
+        await new Promise<void>((r) => setTimeout(r, typingDuration));
+        await this.sock.sendPresenceUpdate('paused', chatJid);
+      } catch {
+        // Presence errors shouldn't prevent sending sticker
+      }
+    }
+
+    // Build a clean, sanitized quoted reference to prevent WhatsApp client-side
+    // media drop when quoting images/videos containing raw encrypted media keys.
+    const sanitizedQuoted = {
+      key: raw.key,
+      message: { conversation: textPreview },
+    };
+
+    if (payload.sticker) {
+      console.log(`\x1b[32m[SENDING]\x1b[0m Quoting message "${textPreview}" with sticker...`);
+      try {
+        const sent = await this.sock.sendMessage(
+          chatJid,
+          { sticker: payload.sticker },
+          { quoted: sanitizedQuoted as unknown as WAMessage }
+        );
+        console.log(
+          `\x1b[32m[SUCCESS]\x1b[0m Sticker sent successfully! (ID: ${sent?.key?.id ?? 'dispatched'}) Target annoyed.`
+        );
+      } catch (quoteErr) {
+        console.warn(
+          `\x1b[33m[WARN]\x1b[0m Quoted send failed, falling back to standalone sticker:`,
+          quoteErr
+        );
+        const fallback = await this.sock.sendMessage(chatJid, { sticker: payload.sticker });
+        console.log(
+          `\x1b[32m[SUCCESS]\x1b[0m Standalone sticker sent as fallback! (ID: ${fallback?.key?.id ?? 'dispatched'})`
+        );
+      }
+    }
+  }
+
+  private extractText(msg: WAMessage): string {
     const m = msg.message;
     if (!m) return '';
-
     if (m.conversation) return m.conversation;
     if (m.extendedTextMessage?.text) return m.extendedTextMessage.text;
     if (m.imageMessage?.caption) return `[Image: ${m.imageMessage.caption}]`;
@@ -163,7 +203,6 @@ export class WhatsAppClient {
     if (m.stickerMessage) return '[Sticker]';
     if (m.audioMessage) return '[Audio Note]';
     if (m.reactionMessage) return `[Reaction: ${m.reactionMessage.text}]`;
-
     return '[Message]';
   }
 

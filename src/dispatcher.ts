@@ -8,12 +8,12 @@ import {
   isSelfTestAllowed,
 } from './guards/index.js';
 import { buildStrategy } from './strategies/index.js';
-import { StickerPayloadGenerator } from './generators/index.js';
+import { CompositePayloadGenerator } from './generators/index.js';
 import type { WhatsAppTransport } from './transport/index.js';
 
 export class Dispatcher {
   private readonly strategy = buildStrategy(config);
-  private readonly generator = new StickerPayloadGenerator();
+  private readonly generator = new CompositePayloadGenerator();
 
   constructor(
     private transport: WhatsAppTransport,

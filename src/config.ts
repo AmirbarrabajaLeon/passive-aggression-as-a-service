@@ -4,6 +4,7 @@ import path from 'node:path';
 dotenv.config();
 
 export type ReplyMode = 'debounce' | 'queue' | 'cooldown';
+export type ReplyFormat = 'combo' | 'text' | 'sticker';
 
 export interface Config {
   targetGroupJid: string;
@@ -19,6 +20,11 @@ export interface Config {
   discoveryMode: boolean;
   allowSelfTest: boolean;
   myPhoneNumber: string;
+  // Phase 3: LLM retort config
+  llmApiKey: string;
+  llmBaseUrl: string;
+  llmModel: string;
+  replyFormat: ReplyFormat;
 }
 
 function normalizeJid(id: string, defaultDomain: 's.whatsapp.net' | 'g.us'): string {
@@ -44,4 +50,9 @@ export const config: Config = {
   discoveryMode: process.env.DISCOVERY_MODE !== 'false',
   allowSelfTest: process.env.ALLOW_SELF_TEST === 'true',
   myPhoneNumber: (process.env.MY_PHONE_NUMBER || '').trim().replace(/[+\s-]/g, ''),
+  // Phase 3: LLM retort config
+  llmApiKey: process.env.LLM_API_KEY ?? '',
+  llmBaseUrl: process.env.LLM_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  llmModel: process.env.LLM_MODEL ?? 'gemini-2.5-flash',
+  replyFormat: (process.env.REPLY_FORMAT as ReplyFormat) ?? 'combo',
 };

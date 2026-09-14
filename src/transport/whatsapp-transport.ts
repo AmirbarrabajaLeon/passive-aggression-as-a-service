@@ -169,6 +169,28 @@ export class WhatsAppTransport {
       message: { conversation: textPreview },
     };
 
+    // --- Text retort (quoted reply) ---
+    if (payload.text) {
+      console.log(`\x1b[35m[SENDING TEXT]\x1b[0m Quoting "${textPreview}" with LLM retort...`);
+      try {
+        await this.sock.sendMessage(
+          chatJid,
+          { text: payload.text },
+          { quoted: sanitizedQuoted as unknown as WAMessage }
+        );
+        console.log(`\x1b[35m[SUCCESS TEXT]\x1b[0m Retort delivered. They will feel this.`);
+      } catch (err) {
+        console.warn(`\x1b[33m[WARN]\x1b[0m Text retort send failed:`, err);
+      }
+
+      // Brief human-like pause between text retort and sticker (combo mode only)
+      if (payload.sticker) {
+        const pause = 800 + Math.floor(Math.random() * 600);
+        await new Promise<void>((r) => setTimeout(r, pause));
+      }
+    }
+
+    // --- Sticker reply ---
     if (payload.sticker) {
       console.log(`\x1b[32m[SENDING]\x1b[0m Quoting message "${textPreview}" with sticker...`);
       try {

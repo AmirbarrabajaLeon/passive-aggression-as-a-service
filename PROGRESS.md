@@ -57,6 +57,7 @@ Phase 3 (Stateless LLM Replier) is **complete and verified**. Ready to begin **P
 - [ ] Extend `StickerPool` to draw non-repeating shuffles from specific mood categories.
 - [ ] Structured LLM action matrix: `{ stance, action, text, sticker_category, delay }`.
 - [ ] Dynamic behavior stances: cocky, tsundere, chill, or deliberate ignore/cooldown.
+- [ ] `FatigueStrategy`: dynamic probability decay & escalating cooldowns with stamina recovery.
 
 ### Phase 6: WhatsApp-Native HITL & Target Dossiers 📲 (Future Exploration)
 - [ ] WhatsApp-Native Approval Loop: ping your personal WhatsApp DM when confidence is low with 1-tap options.

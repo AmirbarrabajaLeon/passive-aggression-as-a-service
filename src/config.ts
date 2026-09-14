@@ -28,7 +28,9 @@ export interface Config {
 }
 
 function normalizeJid(id: string, defaultDomain: 's.whatsapp.net' | 'g.us'): string {
-  const clean = id.trim().replace(/[+\s-]/g, '');
+  const clean = defaultDomain === 'g.us'
+    ? id.trim().replace(/[+\s]/g, '')
+    : id.trim().replace(/[+\s-]/g, '');
   if (!clean) return '';
   if (clean.includes('@')) return clean;
   return `${clean}@${defaultDomain}`;

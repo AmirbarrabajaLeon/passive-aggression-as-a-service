@@ -72,7 +72,10 @@ Phase 3 (Stateless LLM Replier) is **complete and verified**. Ready to begin **P
 - **Prompt File:** `prompts/system.md` is read once at startup and cached in memory. Edit it, restart the bot. Phase 4 Web UI will hot-reload it via the dashboard.
 - **Combo Latency:** In `combo` mode, LLM API call and sticker disk-scan run in parallel via `Promise.all()`. Net latency ≈ max(LLM, disk) not their sum. Gemini Flash typically responds in 1–2s.
 - **Stickers Pool:** `./stickers/` is the single source of truth. Both static and animated `.webp` files (<= 1MB) are supported.
+- **WhatsApp JIDs & Group Formats:** Legacy WhatsApp group JIDs follow `<creator_phone>-<timestamp>@g.us` (e.g. `51933099803-1620184634@g.us`). `normalizeJid` preserves hyphens for `@g.us` domains while stripping them for standard phone JIDs.
+- **Target Matching Resilience:** `isTargetMatch` tolerates leading `+` and hyphenated phone numbers in `TARGET_SENDER_PHONE` and matches against both raw LID and mapped phone numbers seamlessly.
 - **Safety Policy:** Do not run `pnpm dev` or `pnpm start` via autonomous agents.
+
 
 ---
 

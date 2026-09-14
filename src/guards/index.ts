@@ -18,14 +18,16 @@ export function isTargetMatch(msg: InboundMessage, config: Config): boolean {
   const rawTarget = config.targetSenderPhone.startsWith('@')
     ? config.targetSenderPhone.slice(1)
     : config.targetSenderPhone;
-  const cleanTarget = rawTarget.split('@')[0].replace(/[:\s]/g, '').toLowerCase();
+  const cleanTarget = rawTarget.split('@')[0].replace(/[:\s+]/g, '').toLowerCase();
+  const cleanTargetNoHyphen = cleanTarget.replace(/-/g, '');
   const cleanSender = msg.senderJid.split('@')[0].split(':')[0].toLowerCase();
   const cleanAlt = msg.altSenderJid?.split('@')[0].split(':')[0].toLowerCase() ?? '';
   const cleanUser = msg.senderUsername?.toLowerCase().replace(/[@\s]/g, '') ?? '';
 
   return (
     cleanSender === cleanTarget ||
-    (!!cleanAlt && cleanAlt === cleanTarget) ||
+    cleanSender === cleanTargetNoHyphen ||
+    (!!cleanAlt && (cleanAlt === cleanTarget || cleanAlt === cleanTargetNoHyphen)) ||
     (!!cleanUser && cleanUser === cleanTarget)
   );
 }
